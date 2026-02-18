@@ -2,11 +2,11 @@ const std = @import("std");
 const types = @import("types.zig");
 
 pub const Loadout = struct {
-    id: []u8,
-    name: []u8,
-    description: []u8 = &.{},
+    id: []const u8,
+    name: []const u8,
+    description: []const u8 = &.{},
     created_date: i64,
-    notes: []u8 = &.{},
+    notes: []const u8 = &.{},
 
     pub fn init(allocator: std.mem.Allocator, id: []const u8, name: []const u8, created_date: i64) !*Loadout {
         const l = try allocator.create(Loadout);
@@ -28,11 +28,11 @@ pub const Loadout = struct {
 };
 
 pub const LoadoutItem = struct {
-    id: []u8,
-    loadout_id: []u8,
-    item_id: []u8,
+    id: []const u8,
+    loadout_id: []const u8,
+    item_id: []const u8,
     item_type: types.GearCategory,
-    notes: []u8 = &.{},
+    notes: []const u8 = &.{},
 
     pub fn init(allocator: std.mem.Allocator, id: []const u8, loadout_id: []const u8, item_id: []const u8, item_type: types.GearCategory) !*LoadoutItem {
         const li = try allocator.create(LoadoutItem);
@@ -55,11 +55,11 @@ pub const LoadoutItem = struct {
 };
 
 pub const LoadoutConsumable = struct {
-    id: []u8,
-    loadout_id: []u8,
-    consumable_id: []u8,
+    id: []const u8,
+    loadout_id: []const u8,
+    consumable_id: []const u8,
     quantity: i32,
-    notes: []u8 = &.{},
+    notes: []const u8 = &.{},
 
     pub fn init(allocator: std.mem.Allocator, id: []const u8, loadout_id: []const u8, consumable_id: []const u8, quantity: i32) !*LoadoutConsumable {
         const lc = try allocator.create(LoadoutConsumable);
@@ -82,14 +82,14 @@ pub const LoadoutConsumable = struct {
 };
 
 pub const LoadoutCheckout = struct {
-    id: []u8,
-    loadout_id: []u8,
-    checkout_id: []u8,
+    id: []const u8,
+    loadout_id: []const u8,
+    checkout_id: []const u8,
     return_date: ?i64 = null,
     rounds_fired: i32 = 0,
     rain_exposure: bool = false,
-    ammo_type: []u8 = &.{},
-    notes: []u8 = &.{},
+    ammo_type: []const u8 = &.{},
+    notes: []const u8 = &.{},
 
     pub fn init(allocator: std.mem.Allocator, id: []const u8, loadout_id: []const u8, checkout_id: []const u8) !*LoadoutCheckout {
         const lc = try allocator.create(LoadoutCheckout);

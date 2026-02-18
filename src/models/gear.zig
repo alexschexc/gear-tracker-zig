@@ -2,12 +2,12 @@ const std = @import("std");
 const types = @import("types.zig");
 
 pub const SoftGear = struct {
-    id: []u8,
-    name: []u8,
-    category: []u8,
-    brand: []u8,
+    id: []const u8,
+    name: []const u8,
+    category: []const u8,
+    brand: []const u8,
     purchase_date: i64,
-    notes: []u8 = &.{},
+    notes: []const u8 = &.{},
     status: types.CheckoutStatus = .available,
 
     pub fn init(allocator: std.mem.Allocator, id: []const u8, name: []const u8, category: []const u8, brand: []const u8, purchase_date: i64) !*SoftGear {
@@ -33,23 +33,23 @@ pub const SoftGear = struct {
 };
 
 pub const NFAItem = struct {
-    id: []u8,
-    name: []u8,
+    id: []const u8,
+    name: []const u8,
     nfa_type: types.NFAItemType,
-    manufacturer: []u8,
-    serial_number: []u8,
-    tax_stamp_id: []u8,
-    caliber_bore: []u8,
+    manufacturer: []const u8,
+    serial_number: []const u8,
+    tax_stamp_id: []const u8,
+    caliber_bore: []const u8,
     purchase_date: i64,
-    form_type: []u8 = &.{},
-    trust_name: []u8 = &.{},
-    notes: []u8 = &.{},
+    form_type: []const u8 = &.{},
+    trust_name: []const u8 = &.{},
+    notes: []const u8 = &.{},
     status: types.CheckoutStatus = .available,
     rounds_fired: i32 = 0,
     clean_interval_rounds: i32 = 500,
     oil_interval_days: i32 = 90,
     needs_maintenance: bool = false,
-    maintenance_conditions: []u8 = &.{},
+    maintenance_conditions: []const u8 = &.{},
 
     pub fn init(allocator: std.mem.Allocator, id: []const u8, name: []const u8, nfa_type: types.NFAItemType, manufacturer: []const u8, serial: []const u8, tax_stamp: []const u8, caliber: []const u8, purchase_date: i64) !*NFAItem {
         const item = try allocator.create(NFAItem);
@@ -82,18 +82,18 @@ pub const NFAItem = struct {
 };
 
 pub const Attachment = struct {
-    id: []u8,
-    name: []u8,
-    category: []u8,
-    brand: []u8,
-    model: []u8,
+    id: []const u8,
+    name: []const u8,
+    category: []const u8,
+    brand: []const u8,
+    model: []const u8,
     purchase_date: i64,
-    serial_number: []u8 = &.{},
-    mounted_on_firearm_id: ?[]u8 = null,
-    mount_position: []u8 = &.{},
+    serial_number: []const u8 = &.{},
+    mounted_on_firearm_id: ?[]const u8 = null,
+    mount_position: []const u8 = &.{},
     zero_distance_yards: ?i32 = null,
-    zero_notes: []u8 = &.{},
-    notes: []u8 = &.{},
+    zero_notes: []const u8 = &.{},
+    notes: []const u8 = &.{},
 
     pub fn init(allocator: std.mem.Allocator, id: []const u8, name: []const u8, category: []const u8, brand: []const u8, model: []const u8, purchase_date: i64) !*Attachment {
         const att = try allocator.create(Attachment);

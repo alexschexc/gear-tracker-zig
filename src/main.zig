@@ -1,41 +1,123 @@
 const std = @import("std");
+const zglfw = @import("zglfw");
+const zgui = @import("zgui");
 const gear = @import("gearTracker_zig");
 
-pub fn main() void {
-    std.debug.print("GearTracker MVP - Zig version initialized!\n", .{});
-    std.debug.print("Models available: Firearm, SoftGear, NFAItem, Attachment, Checkout, Borrower,\n", .{});
-    std.debug.print("  Loadout, LoadoutItem, Consumable, MaintenanceLog, ReloadBatch\n", .{});
+var window: *zglfw.Window = undefined;
+var allocator: std.mem.Allocator = undefined;
+var db: *gear.Database = undefined;
 
+var selected_row: ?usize = null;
+var current_category: usize = 0;
+
+pub fn main() !void {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
     defer _ = gpa.deinit();
-    const allocator = gpa.allocator();
+    allocator = gpa.allocator();
+
+    try zglfw.init();
+    defer zglfw.terminate();
+
+    zglfw.windowHint(.opengl_profile, .opengl_core_profile);
+    zglfw.windowHint(.context_version_major, 3);
+    zglfw.windowHint(.context_version_minor, 3);
+    zglfw.windowHint(.opengl_forward_compat, true);
+
+    window = try zglfw.Window.create(900, 600, "GearTracker", null, null);
+    defer window.destroy();
+
+    zglfw.makeContextCurrent(window);
+
+    zgui.init(allocator);
+    defer zgui.deinit();
+
+    zgui.backend.init(window);
 
     const home_dir = std.posix.getenv("HOME") orelse ".";
     var db_path_buf: [512]u8 = undefined;
     const db_path = std.fmt.bufPrint(&db_path_buf, "{s}/.gear_tracker/tracker.db", .{home_dir}) catch ".gear_tracker/tracker.db";
-    std.debug.print("\nInitializing database at: {s}\n", .{db_path});
 
-    var db = gear.Database.init(allocator, db_path) catch |err| {
-        std.debug.print("Failed to init database: {}\n", .{err});
-        return;
-    };
-    defer db.deinit();
-
-    std.debug.print("Database initialized successfully!\n", .{});
-
-    var repo = gear.FirearmRepository{ .db = &db };
-
-    std.debug.print("\n--- Testing Firearm CRUD ---\n", .{});
-
-    // Just test getAll for now
-    const all = repo.getAll(allocator) catch |err| {
-        std.debug.print("Failed to get all firearms: {}\n", .{err});
-        return;
-    };
-    std.debug.print("Found {d} firearms\n", .{all.len});
-    for (all) |f| {
-        std.debug.print("  - {s} ({s})\n", .{ f.name, f.caliber });
+    db = try allocator.create(gear.Database);
+    db.* = try gear.Database.init(allocator, db_path);
+    defer {
+        db.deinit();
+        allocator.destroy(db);
     }
 
-    std.debug.print("\n--- CRUD Test Complete ---\n", .{});
+    while (!window.shouldClose()) {
+        zglfw.pollEvents();
+
+        const fb_size = window.getFramebufferSize();
+        zgui.backend.newFrame(@intCast(fb_size[0]), @intCast(fb_size[1]));
+
+        try renderUI();
+
+        zgui.backend.draw();
+
+        window.swapBuffers();
+    }
+}
+
+fn renderUI() !void {
+    zgui.setNextWindowSize(.{ .w = 900, .h = 600, .cond = .always });
+    if (zgui.begin("GearTracker", .{})) {
+        defer zgui.end();
+
+        if (zgui.beginTabBar("categories", .{})) {
+            if (zgui.tabItemButton("Firearms", .{})) {
+                current_category = 0;
+                selected_row = null;
+            }
+            if (zgui.tabItemButton("Soft Gear", .{})) {
+                current_category = 1;
+                selected_row = null;
+            }
+            if (zgui.tabItemButton("NFA Items", .{})) {
+                current_category = 2;
+                selected_row = null;
+            }
+            if (zgui.tabItemButton("Attachments", .{})) {
+                current_category = 3;
+                selected_row = null;
+            }
+            zgui.endTabBar();
+        }
+
+        zgui.separator();
+
+        if (zgui.beginTable("gear", .{ .column = 3, .flags = .{} })) {
+            defer zgui.endTable();
+
+            zgui.tableSetupColumn("Name", .{});
+            zgui.tableSetupColumn("Caliber", .{});
+            zgui.tableSetupColumn("Serial", .{});
+            zgui.tableHeadersRow();
+
+            const data = getDataForCategory(current_category);
+
+            for (data, 0..) |item, i| {
+                zgui.tableNextRow(.{});
+                _ = zgui.tableSetColumnIndex(0);
+                const is_selected = selected_row == i;
+
+                var id_buf: [32]u8 = undefined;
+                const id = std.fmt.bufPrintZ(&id_buf, "row_{d}", .{i}) catch "row_0";
+                if (zgui.selectable(id, .{ .selected = is_selected })) {
+                    selected_row = i;
+                }
+                zgui.textUnformatted(item.name);
+
+                _ = zgui.tableSetColumnIndex(1);
+                zgui.textUnformatted(item.caliber);
+
+                _ = zgui.tableSetColumnIndex(2);
+                zgui.textUnformatted(item.serial_number);
+            }
+        }
+    }
+}
+
+fn getDataForCategory(_: usize) []gear.firearm.Firearm {
+    var repo = gear.FirearmRepository{ .db = db };
+    return repo.getAll(allocator) catch &[_]gear.firearm.Firearm{};
 }

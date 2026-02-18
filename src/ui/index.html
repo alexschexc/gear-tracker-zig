@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GearTracker</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f5f5f5; padding: 20px; }
+        h1 { color: #333; margin-bottom: 20px; }
+        .tabs { display: flex; gap: 5px; margin-bottom: 20px; }
+        .tab { padding: 10px 20px; background: #e0e0e0; border: none; cursor: pointer; border-radius: 5px 5px 0 0; font-size: 14px; }
+        .tab.active { background: #007bff; color: white; }
+        .tab:hover:not(.active) { background: #d0d0d0; }
+        .content { background: white; border-radius: 0 5px 5px 5px; padding: 20px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+        table { width: 100%; border-collapse: collapse; }
+        th, td { padding: 12px; text-align: left; border-bottom: 1px solid #ddd; }
+        th { background: #f8f8f8; font-weight: 600; cursor: pointer; }
+        th:hover { background: #e8e8e8; }
+        tr:hover { background: #f9f9f9; }
+        .status-available { color: #28a745; }
+        .status-checked_out { color: #dc3545; }
+        .status-maintenance { color: #ffc107; }
+        .loading { text-align: center; padding: 40px; color: #666; }
+    </style>
+</head>
+<body>
+    <h1>GearTracker - Hunting Equipment Manager</h1>
+    
+    <div class="tabs">
+        <button class="tab active" onclick="showTab('firearms')">Firearms</button>
+        <button class="tab" onclick="showTab('softgear')">Soft Gear</button>
+        <button class="tab" onclick="showTab('nfa')">NFA Items</button>
+        <button class="tab" onclick="showTab('attachments')">Attachments</button>
+    </div>
+    
+    <div class="content">
+        <div id="table-container">
+            <div class="loading">Loading...</div>
+        </div>
+    </div>
+
+    <script>
+        let currentTab = 'firearms';
+        const columns = {
+            firearms: ['Name', 'Caliber', 'Serial', 'Status'],
+            softgear: ['Name', 'Category', 'Brand', 'Status'],
+            nfa: ['Name', 'Type', 'Serial', 'Tax Stamp'],
+            attachments: ['Name', 'Category', 'Brand', 'Model']
+        };
+        const keys = {
+            firearms: ['name', 'caliber', 'serial', 'status'],
+            softgear: ['name', 'category', 'brand', 'status'],
+            nfa: ['name', 'type', 'serial', 'taxstamp'],
+            attachments: ['name', 'category', 'brand', 'model']
+        };
+
+        async function showTab(tab) {
+            currentTab = tab;
+            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+            event.target.classList.add('active');
+            
+            const container = document.getElementById('table-container');
+            container.innerHTML = '<div class="loading">Loading...</div>';
+            
+            try {
+                const response = await fetch('/api/' + tab);
+                const data = await response.json();
+                renderTable(data);
+            } catch (e) {
+                container.innerHTML = '<div class="loading">Error loading data</div>';
+            }
+        }
+
+        function renderTable(data) {
+            const container = document.getElementById('table-container');
+            if (!data || data.length === 0) {
+                container.innerHTML = '<div class="loading">No items found</div>';
+                return;
+            }
+
+            let html = '<table><thead><tr>';
+            columns[currentTab].forEach(col => {
+                html += `<th onclick="sortTable('${col.toLowerCase()}')">${col}</th>`;
+            });
+            html += '</tr></thead><tbody>';
+
+            data.forEach(item => {
+                html += '<tr>';
+                keys[currentTab].forEach(key => {
+                    let value = item[key] || '';
+                    let cls = '';
+                    if (key === 'status') {
+                        cls = 'status-' + value.replace(' ', '_').toLowerCase();
+                    }
+                    html += `<td class="${cls}">${value}</td>`;
+                });
+                html += '</tr>';
+            });
+
+            html += '</tbody></table>';
+            container.innerHTML = html;
+        }
+
+        let sortCol = null;
+        let sortAsc = true;
+
+        function sortTable(col) {
+            const key = col.replace(' ', '');
+            if (sortCol === key) {
+                sortAsc = !sortAsc;
+            } else {
+                sortCol = key;
+                sortAsc = true;
+            }
+            
+            const container = document.getElementById('table-container');
+            const table = container.querySelector('table');
+            if (!table) return;
+
+            const tbody = table.querySelector('tbody');
+            const rows = Array.from(tbody.querySelectorAll('tr'));
+            
+            rows.sort((a, b) => {
+                const aVal = a.cells[keys[currentTab].indexOf(sortCol)]?.textContent || '';
+                const bVal = b.cells[keys[currentTab].indexOf(sortCol)]?.textContent || '';
+                return sortAsc ? aVal.localeCompare(bVal) : bVal.localeCompare(aVal);
+            });
+
+            rows.forEach(row => tbody.appendChild(row));
+        }
+
+        showTab('firearms');
+    </script>
+</body>
+</html>

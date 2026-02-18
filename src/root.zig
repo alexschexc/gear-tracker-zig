@@ -12,6 +12,24 @@ pub const repository = @import("repository/database.zig");
 
 pub const Database = repository.Database;
 pub const FirearmRepository = repository.FirearmRepository;
+pub const SoftGearRepository = repository.SoftGearRepository;
+pub const ConsumableRepository = repository.ConsumableRepository;
+pub const ConsumableTransactionRepository = repository.ConsumableTransactionRepository;
+pub const BorrowerRepository = repository.BorrowerRepository;
+pub const CheckoutRepository = repository.CheckoutRepository;
+pub const MaintenanceLogRepository = repository.MaintenanceLogRepository;
+pub const NFAItemRepository = repository.NFAItemRepository;
+pub const AttachmentRepository = repository.AttachmentRepository;
+pub const TransferRepository = repository.TransferRepository;
+pub const ReloadBatchRepository = repository.ReloadBatchRepository;
+pub const LoadoutRepository = repository.LoadoutRepository;
+pub const LoadoutItemRepository = repository.LoadoutItemRepository;
+pub const LoadoutConsumableRepository = repository.LoadoutConsumableRepository;
+pub const LoadoutCheckoutRepository = repository.LoadoutCheckoutRepository;
+
+pub const CheckoutService = @import("services/checkout.zig");
+pub const MaintenanceService = @import("services/maintenance.zig");
+pub const LoadoutService = @import("services/loadout.zig");
 
 pub const Firearm = firearm.Firearm;
 pub const Transfer = firearm.Transfer;

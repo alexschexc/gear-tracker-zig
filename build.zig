@@ -9,6 +9,22 @@ pub fn build(b: *std.Build) void {
         .target = target,
     });
 
+    const zgui_dep = b.dependency("zgui", .{
+        .target = target,
+    });
+    const zgui_mod = zgui_dep.module("root");
+
+    const zglfw_dep = b.dependency("zglfw", .{
+        .target = target,
+    });
+    const zglfw_mod = zglfw_dep.module("root");
+
+    const zopengl_dep = b.dependency("zopengl", .{
+        .target = target,
+    });
+    const zopengl_mod = zopengl_dep.module("root");
+    _ = zopengl_mod;
+
     const exe = b.addExecutable(.{
         .name = "gearTracker_zig",
         .root_module = b.createModule(.{
@@ -17,12 +33,18 @@ pub fn build(b: *std.Build) void {
             .optimize = optimize,
             .imports = &.{
                 .{ .name = "gearTracker_zig", .module = mod },
+                .{ .name = "zgui", .module = zgui_mod },
+                .{ .name = "zglfw", .module = zglfw_mod },
             },
         }),
     });
 
     exe.linkSystemLibrary("sqlite3");
     exe.linkLibC();
+    exe.linkSystemLibrary("glfw");
+    exe.linkSystemLibrary("GL");
+
+    exe.linkLibrary(zgui_dep.artifact("imgui"));
 
     b.installArtifact(exe);
 

@@ -21,6 +21,10 @@ pub const Firearm = struct {
     oil_interval_days: i32 = 90,
     needs_maintenance: bool = false,
     maintenance_conditions: []const u8 = &.{},
+    last_cleaned_at: i64 = 0,
+    last_oiled_at: i64 = 0,
+    created_at: i64 = 0,
+    updated_at: i64 = 0,
 
     pub fn init(allocator: std.mem.Allocator, id: []const u8, name: []const u8, caliber: []const u8, serial: []const u8, purchase_date: i64) !*Firearm {
         const fw = try allocator.create(Firearm);
@@ -54,17 +58,17 @@ pub const Firearm = struct {
 };
 
 pub const Transfer = struct {
-    id: []u8,
-    firearm_id: []u8,
+    id: []const u8,
+    firearm_id: []const u8,
     transfer_date: i64,
-    buyer_name: []u8,
-    buyer_address: []u8,
-    buyer_dl_number: []u8,
-    buyer_ltc_number: []u8 = &.{},
+    buyer_name: []const u8,
+    buyer_address: []const u8,
+    buyer_dl_number: []const u8,
+    buyer_ltc_number: []const u8 = &.{},
     sale_price: f64 = 0.0,
-    ffl_dealer: []u8 = &.{},
-    ffl_license: []u8 = &.{},
-    notes: []u8 = &.{},
+    ffl_dealer: []const u8 = &.{},
+    ffl_license: []const u8 = &.{},
+    notes: []const u8 = &.{},
 
     pub fn init(allocator: std.mem.Allocator, id: []const u8, firearm_id: []const u8, transfer_date: i64, buyer_name: []const u8, buyer_address: []const u8, buyer_dl: []const u8) !*Transfer {
         const t = try allocator.create(Transfer);

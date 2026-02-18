@@ -2,13 +2,13 @@ const std = @import("std");
 const types = @import("types.zig");
 
 pub const Consumable = struct {
-    id: []u8,
-    name: []u8,
+    id: []const u8,
+    name: []const u8,
     category: types.ConsumableCategory,
-    unit: []u8,
+    unit: []const u8,
     quantity: i32,
     min_quantity: i32,
-    notes: []u8 = &.{},
+    notes: []const u8 = &.{},
 
     pub fn init(allocator: std.mem.Allocator, id: []const u8, name: []const u8, category: types.ConsumableCategory, unit: []const u8, quantity: i32, min_quantity: i32) !*Consumable {
         const c = try allocator.create(Consumable);
@@ -37,12 +37,12 @@ pub const Consumable = struct {
 };
 
 pub const ConsumableTransaction = struct {
-    id: []u8,
-    consumable_id: []u8,
+    id: []const u8,
+    consumable_id: []const u8,
     transaction_type: types.TransactionType,
     quantity: i32,
     date: i64,
-    notes: []u8 = &.{},
+    notes: []const u8 = &.{},
 
     pub fn init(allocator: std.mem.Allocator, id: []const u8, consumable_id: []const u8, transaction_type: types.TransactionType, quantity: i32, date: i64) !*ConsumableTransaction {
         const t = try allocator.create(ConsumableTransaction);
