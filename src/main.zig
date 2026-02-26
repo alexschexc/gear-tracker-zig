@@ -89,7 +89,14 @@ var reload_es: i32 = 0;
 var reload_sd: i32 = 0;
 var reload_group_size: f64 = 0.0;
 var reload_group_distance: i32 = 100;
-var reload_notes: [512:0]u8 = .{0} ** 512;
+var import_modal_open: bool = false;
+var import_filename: [512:0]u8 = .{0} ** 512;
+var import_duplicate_mode: i32 = 0;
+var import_result_message: [1024:0]u8 = .{0} ** 1024;
+var import_success_count: i32 = 0;
+var import_error_count: i32 = 0;
+
+const ImportDuplicateMode = enum { skip, overwrite, create_new };
 
 var form_cartridge: [256:0]u8 = .{0} ** 256;
 var form_firearm_id: [256:0]u8 = .{0} ** 256;
@@ -112,6 +119,8 @@ var test_es: i32 = 0;
 var test_sd: i32 = 0;
 var test_group_size: f64 = 0.0;
 var test_group_distance: i32 = 0;
+
+var reload_notes: [512:0]u8 = .{0} ** 512;
 
 const Category = enum {
     firearms,
@@ -256,6 +265,7 @@ fn renderUI() !void {
     try renderCheckoutModal();
     try renderReturnModal();
     try renderLoadoutModal();
+    renderImportModal();
     try renderReloadResultsModal();
 
     const window_size = window.getSize();
@@ -822,16 +832,501 @@ fn exportCategoryToCSV(cat: Category) !void {
     }
 }
 
-fn importFromCSV(_: Category) !void {
-    zgui.openPopup("ImportModal", .{});
-    if (zgui.beginPopup("ImportModal", .{})) {
-        zgui.text("Import not yet implemented", .{});
-        zgui.textDisabled("File picker coming soon", .{});
-        if (zgui.button("Close", .{})) {
-            zgui.closeCurrentPopup();
+fn importFromCSV(cat: Category) !void {
+    import_modal_open = true;
+    import_success_count = 0;
+    import_error_count = 0;
+    @memset(&import_result_message, 0);
+
+    const home_dir = std.posix.getenv("HOME") orelse ".";
+    const prefix = switch (cat) {
+        .firearms => "firearms",
+        .soft_gear => "soft_gear",
+        .consumables => "consumables",
+        else => "data",
+    };
+
+    var filename_buf: [512]u8 = undefined;
+    const default_filename = std.fmt.bufPrint(&filename_buf, "{s}/Downloads/{s}.csv", .{ home_dir, prefix }) catch return;
+
+    @memset(&import_filename, 0);
+    std.mem.copyForwards(u8, &import_filename, default_filename);
+    import_filename[default_filename.len] = 0;
+}
+
+fn renderImportModal() void {
+    if (!import_modal_open) return;
+
+    zgui.setNextWindowSize(.{ .w = 500, .h = 400, .cond = .always });
+    zgui.setNextWindowPos(.{ .x = 100, .y = 100, .cond = .always });
+
+    if (zgui.begin("Import CSV", .{ .flags = .{} })) {
+        zgui.text("Import from CSV", .{});
+        zgui.separator();
+
+        zgui.text("File:", .{});
+        _ = zgui.inputText("##import_file", .{ .buf = &import_filename, .flags = .{ .read_only = true } });
+
+        zgui.text("Duplicate Handling:", .{});
+        _ = zgui.combo("##duplicate_mode", .{ .current_item = &import_duplicate_mode, .items_separated_by_zeros = "Skip Existing\x00Overwrite Existing\x00Create New\x00" });
+
+        zgui.separator();
+
+        if (zgui.button("Import", .{})) {
+            import_success_count = 0;
+            import_error_count = 0;
+            @memset(&import_result_message, 0);
+
+            const filename = std.mem.sliceTo(&import_filename, 0);
+            importCSVFile(filename, @enumFromInt(import_duplicate_mode));
         }
-        zgui.endPopup();
+
+        zgui.sameLine(.{});
+
+        if (zgui.button("Close", .{})) {
+            import_modal_open = false;
+        }
+
+        if (import_success_count > 0 or import_error_count > 0) {
+            zgui.separator();
+            zgui.text("{d} imported, {d} errors", .{ import_success_count, import_error_count });
+        }
+
+        zgui.end();
     }
+}
+
+fn importCSVFile(filename: []const u8, _: ImportDuplicateMode) void {
+    const file = std.fs.openFileAbsolute(filename, .{ .mode = .read_only }) catch {
+        import_error_count = 1;
+        return;
+    };
+    defer file.close();
+
+    const content = file.readToEndAlloc(allocator, 1024 * 1024) catch {
+        import_error_count = 1;
+        return;
+    };
+    defer allocator.free(content);
+
+    var lines_iter = std.mem.splitSequence(u8, content, "\n");
+    var section: ?[]const u8 = null;
+    var in_header: bool = true;
+
+    while (lines_iter.next()) |line| {
+        const trimmed = std.mem.trim(u8, line, "\r");
+
+        if (trimmed.len == 0) continue;
+
+        if (std.mem.startsWith(u8, trimmed, "===")) {
+            const section_name = std.mem.trim(u8, trimmed, "= ");
+            if (std.mem.eql(u8, section_name, "METADATA")) {
+                section = null;
+                in_header = true;
+            } else {
+                section = section_name;
+                in_header = true;
+            }
+            continue;
+        }
+
+        if (section == null) continue;
+
+        if (in_header) {
+            in_header = false;
+            continue;
+        }
+
+        var value_iter = std.mem.splitSequence(u8, trimmed, ",");
+        var values: [20][]const u8 = undefined;
+        var value_count: usize = 0;
+
+        while (value_iter.next()) |v| {
+            if (value_count >= 20) break;
+            values[value_count] = std.mem.trim(u8, v, " \r");
+            value_count += 1;
+        }
+
+        const sec = section.?;
+        if (std.mem.eql(u8, sec, "FIREARMS")) {
+            importFirearm(values[0..value_count], .skip);
+        } else if (std.mem.eql(u8, sec, "CONSUMABLES")) {
+            importConsumable(values[0..value_count], .skip);
+            importSoftGear(values[0..value_count], .skip);
+            importNFAItem(values[0..value_count], .skip);
+            importAttachment(values[0..value_count], .skip);
+            importReloadBatch(values[0..value_count], .skip);
+            importBorrower(values[0..value_count], .skip);
+            importLoadout(values[0..value_count], .skip);
+        }
+    }
+}
+
+fn importFirearm(values: []const []const u8, _: ImportDuplicateMode) void {
+    if (values.len < 2) {
+        import_error_count += 1;
+        return;
+    }
+
+    const id = if (values[0].len > 0) values[0] else generateId();
+    const name = if (values.len > 1) values[1] else "";
+    const caliber = if (values.len > 2) values[2] else "";
+    const serial = if (values.len > 3) values[3] else "";
+
+    if (name.len == 0) {
+        import_error_count += 1;
+        return;
+    }
+
+    var repo = gear.FirearmRepository{ .db = db };
+    const timestamp = std.time.timestamp();
+
+    if (repo.getById(allocator, id) catch null == null) {
+        const fw = gear.firearm.Firearm{
+            .id = id,
+            .name = name,
+            .caliber = caliber,
+            .serial_number = serial,
+            .purchase_date = timestamp,
+            .created_at = timestamp,
+            .updated_at = timestamp,
+        };
+        repo.create(fw) catch {
+            import_error_count += 1;
+            return;
+        };
+    }
+
+    import_success_count += 1;
+}
+
+fn importFirearmAsNew(name: []const u8, caliber: []const u8, serial: []const u8) void {
+    const id = generateId();
+    const timestamp = std.time.timestamp();
+
+    var repo = gear.FirearmRepository{ .db = db };
+    const fw = gear.firearm.Firearm{
+        .id = id,
+        .name = name,
+        .caliber = caliber,
+        .serial_number = serial,
+        .purchase_date = timestamp,
+        .created_at = timestamp,
+        .updated_at = timestamp,
+    };
+    repo.create(fw) catch {
+        import_error_count += 1;
+        return;
+    };
+
+    import_success_count += 1;
+}
+
+fn importConsumable(values: []const []const u8, mode: ImportDuplicateMode) void {
+    if (values.len < 2) {
+        import_error_count += 1;
+        return;
+    }
+
+    const name = if (values.len > 1) values[1] else "";
+    if (name.len == 0) {
+        import_error_count += 1;
+        return;
+    }
+
+    const id = if (values.len > 0 and values[0].len > 0) values[0] else generateId();
+    const category = if (values.len > 1) values[1] else "OTHER";
+    const unit = if (values.len > 2) values[2] else "count";
+    const qty = if (values.len > 3 and values[3].len > 0) std.fmt.parseInt(i32, values[3], 10) catch 0 else 0;
+    const min_qty = if (values.len > 4 and values[4].len > 0) std.fmt.parseInt(i32, values[4], 10) catch 0 else 0;
+    const notes = if (values.len > 5) values[5] else "";
+
+    var repo = gear.ConsumableRepository{ .db = db };
+    const existing = repo.getById(allocator, id) catch null;
+
+    if (existing != null) {
+        defer repo.deinit(allocator, existing.?);
+        switch (mode) {
+            .skip => return,
+            .overwrite => {},
+            .create_new => {
+                const new_id = generateId();
+                const csm = gear.consumable.Consumable{
+                    .id = new_id,
+                    .name = name,
+                    .category = gear.types.ConsumableCategory.fromString(category),
+                    .unit = unit,
+                    .quantity = qty,
+                    .min_quantity = min_qty,
+                    .notes = notes,
+                };
+                repo.create(csm) catch {
+                    import_error_count += 1;
+                    return;
+                };
+                import_success_count += 1;
+                return;
+            },
+        }
+    }
+
+    if (existing == null) {
+        const csm = gear.consumable.Consumable{
+            .id = id,
+            .name = name,
+            .category = gear.types.ConsumableCategory.fromString(category),
+            .unit = unit,
+            .quantity = qty,
+            .min_quantity = min_qty,
+            .notes = notes,
+        };
+        repo.create(csm) catch {
+            import_error_count += 1;
+            return;
+        };
+    }
+
+    import_success_count += 1;
+}
+
+fn importSoftGear(values: []const []const u8, _: ImportDuplicateMode) void {
+    if (values.len < 2) {
+        import_error_count += 1;
+        return;
+    }
+
+    const id = if (values.len > 0 and values[0].len > 0) values[0] else generateId();
+    const name = if (values.len > 1) values[1] else "";
+    const category = if (values.len > 2) values[2] else "OTHER";
+    const brand = if (values.len > 3) values[3] else "";
+
+    if (name.len == 0) {
+        import_error_count += 1;
+        return;
+    }
+
+    var repo = gear.SoftGearRepository{ .db = db };
+    const timestamp = std.time.timestamp();
+
+    if (repo.getById(allocator, id) catch null == null) {
+        const sg = gear.gear.SoftGear{
+            .id = id,
+            .name = name,
+            .category = category,
+            .brand = brand,
+            .purchase_date = timestamp,
+        };
+        repo.create(sg) catch {
+            import_error_count += 1;
+            return;
+        };
+    }
+
+    import_success_count += 1;
+}
+
+fn importNFAItem(values: []const []const u8, _: ImportDuplicateMode) void {
+    if (values.len < 2) {
+        import_error_count += 1;
+        return;
+    }
+
+    const id = if (values.len > 0 and values[0].len > 0) values[0] else generateId();
+    const name = if (values.len > 1) values[1] else "";
+
+    if (name.len == 0) {
+        import_error_count += 1;
+        return;
+    }
+
+    var repo = gear.NFAItemRepository{ .db = db };
+    const timestamp = std.time.timestamp();
+
+    if (repo.getById(allocator, id) catch null == null) {
+        const nfa = gear.gear.NFAItem{
+            .id = id,
+            .name = name,
+            .nfa_type = .suppressor,
+            .manufacturer = "",
+            .serial_number = "",
+            .tax_stamp_id = "",
+            .caliber_bore = "",
+            .purchase_date = timestamp,
+        };
+        repo.create(nfa) catch {
+            import_error_count += 1;
+            return;
+        };
+    }
+
+    import_success_count += 1;
+}
+
+fn importAttachment(values: []const []const u8, _: ImportDuplicateMode) void {
+    if (values.len < 2) {
+        import_error_count += 1;
+        return;
+    }
+
+    const id = if (values.len > 0 and values[0].len > 0) values[0] else generateId();
+    const name = if (values.len > 1) values[1] else "";
+
+    if (name.len == 0) {
+        import_error_count += 1;
+        return;
+    }
+
+    var repo = gear.AttachmentRepository{ .db = db };
+    const timestamp = std.time.timestamp();
+
+    if (repo.getById(allocator, id) catch null == null) {
+        const att = gear.gear.Attachment{
+            .id = id,
+            .name = name,
+            .category = "OPTICS",
+            .brand = "",
+            .model = "",
+            .purchase_date = timestamp,
+        };
+        repo.create(att) catch {
+            import_error_count += 1;
+            return;
+        };
+    }
+
+    import_success_count += 1;
+}
+
+fn importReloadBatch(values: []const []const u8, _: ImportDuplicateMode) void {
+    if (values.len < 2) {
+        import_error_count += 1;
+        return;
+    }
+
+    const id = if (values.len > 0 and values[0].len > 0) values[0] else generateId();
+    const cartridge = if (values.len > 1) values[1] else "";
+
+    if (cartridge.len == 0) {
+        import_error_count += 1;
+        return;
+    }
+
+    var repo = gear.ReloadBatchRepository{ .db = db };
+    const timestamp = std.time.timestamp();
+
+    if (repo.getById(allocator, id) catch null == null) {
+        const batch = gear.reloading.ReloadBatch{
+            .id = id,
+            .cartridge = cartridge,
+            .date_created = timestamp,
+        };
+        repo.create(batch) catch {
+            import_error_count += 1;
+            return;
+        };
+    }
+
+    import_success_count += 1;
+}
+
+fn importBorrower(values: []const []const u8, _: ImportDuplicateMode) void {
+    if (values.len < 2) {
+        import_error_count += 1;
+        return;
+    }
+
+    const id = if (values.len > 0 and values[0].len > 0) values[0] else generateId();
+    const name = if (values.len > 1) values[1] else "";
+
+    if (name.len == 0) {
+        import_error_count += 1;
+        return;
+    }
+
+    var repo = gear.BorrowerRepository{ .db = db };
+
+    if (repo.getById(allocator, id) catch null == null) {
+        const borrower = gear.checkout.Borrower{
+            .id = id,
+            .name = name,
+        };
+        repo.create(borrower) catch {
+            import_error_count += 1;
+            return;
+        };
+    }
+
+    import_success_count += 1;
+}
+
+fn importLoadout(values: []const []const u8, _: ImportDuplicateMode) void {
+    if (values.len < 2) {
+        import_error_count += 1;
+        return;
+    }
+
+    const id = if (values.len > 0 and values[0].len > 0) values[0] else generateId();
+    const name = if (values.len > 1) values[1] else "";
+
+    if (name.len == 0) {
+        import_error_count += 1;
+        return;
+    }
+
+    var repo = gear.LoadoutRepository{ .db = db };
+
+    if (repo.getById(allocator, id) catch null == null) {
+        const loadout = gear.loadout.Loadout{
+            .id = id,
+            .name = name,
+            .created_date = std.time.timestamp(),
+        };
+        repo.create(loadout) catch {
+            import_error_count += 1;
+            return;
+        };
+    }
+
+    import_success_count += 1;
+}
+
+fn generateId() []const u8 {
+    var buf: [32]u8 = undefined;
+    const rand = std.time.timestamp();
+    const id = std.fmt.bufPrint(&buf, "import_{d}", .{rand}) catch "import_0";
+    return id;
+}
+
+fn parseDate(date_str: []const u8) i64 {
+    if (date_str.len != 10) return std.time.timestamp();
+
+    var parts_iter = std.mem.split(u8, date_str, "-");
+    const year = parts_iter.next() orelse return std.time.timestamp();
+    const month = parts_iter.next() orelse return std.time.timestamp();
+    const day = parts_iter.next() orelse return std.time.timestamp();
+
+    const y = std.fmt.parseInt(i64, year, 10) catch return std.time.timestamp();
+    const m = std.fmt.parseInt(i64, month, 10) catch return std.time.timestamp();
+    const d = std.fmt.parseInt(i64, day, 10) catch return std.time.timestamp();
+
+    const days_since_epoch = @as(i64, (y - 1970) * 365) + @as(i64, (y - 1970) / 4) + @as(i64, (m - 1) * 30 + d);
+    return days_since_epoch * 86400;
+}
+
+fn parseStatus(status_str: []const u8) gear.types.CheckoutStatus {
+    if (std.mem.eql(u8, status_str, "CHECKED_OUT")) return .checked_out;
+    if (std.mem.eql(u8, status_str, "MAINTENANCE")) return .maintenance;
+    if (std.mem.eql(u8, status_str, "RETIRED")) return .retired;
+    return .available;
+}
+
+fn parseConsumableCategory(cat: []const u8) gear.types.GearCategory {
+    if (std.mem.eql(u8, cat, "AMMO")) return .ammo;
+    if (std.mem.eql(u8, cat, "BATTERIES")) return .batteries;
+    if (std.mem.eql(u8, cat, "HYGIENE")) return .hygiene;
+    if (std.mem.eql(u8, cat, "MEDICAL")) return .medical;
+    if (std.mem.eql(u8, cat, "CLEANING")) return .cleaning;
+    return .other;
 }
 
 fn generateTemplate(cat: Category) !void {

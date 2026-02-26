@@ -215,9 +215,20 @@ zig build
 |--------|--------|-------|
 | x86_64-linux | ✅ Working | Native dev platform |
 | aarch64-linux | ⏳ Untested | Should work |
-| x86_64-windows-gnu | ⏳ Pending | Needs testing |
-| aarch64-macos | ⏳ Pending | Needs testing |
-| x86_64-macos | ⏳ Pending | Needs testing |
+| x86_64-windows-gnu | ⚠️ Requires libs | Needs Windows libraries (sqlite3, glfw, GL) |
+| aarch64-macos | ⚠️ Requires libs | Needs macOS SDK |
+| x86_64-macos | ⚠️ Requires libs | Needs macOS SDK |
+
+**Note:** Cross-compiling to other platforms requires:
+1. The target platform's system libraries (sqlite3, glfw, OpenGL)
+2. A sysroot or cross-compilation environment set up
+3. For Windows: MinGW-w64 or Windows SDK
+4. For macOS: macOS SDK
+
+For beta release, consider:
+- Providing pre-built binaries for supported platforms
+- Using CI/CD with platform-specific runners
+- Documenting build requirements for contributors
 
 ## Version Information
 

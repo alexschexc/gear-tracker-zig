@@ -1,0 +1,11 @@
+=== METADATA ===
+Export Date,Version,Export Type,Dry Run
+2026-02-26,1.0-refactor,FULL,FALSE
+
+=== FIREARMS ===
+id,name,caliber,serial_number
+test-fw-001,Glock 19 Gen5,9mm,ABC123
+
+=== CONSUMABLES ===
+id,name,category,unit,quantity,min_quantity
+test-ammo-001,9mm Parabellum,AMMO,rounds,500,100
