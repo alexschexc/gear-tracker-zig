@@ -498,61 +498,82 @@ pub const FirearmRepository = struct {
     db: *Database,
 
     pub fn create(self: *FirearmRepository, fw: firearm.Firearm) !void {
-        const sql = "INSERT INTO firearms VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+        const sql = "INSERT INTO firearms (name, caliber, serial_number, purchase_date, notes, status, is_nfa, nfa_type, tax_stamp_id, form_type, barrel_length, trust_name, transfer_status, rounds_fired, clean_interval_rounds, oil_interval_days, needs_maintenance, maintenance_conditions, last_cleaned_at, last_oiled_at, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
         const stmt_opt = try self.db.prepare(sql);
         const stmt = stmt_opt orelse return error.PrepareFailed;
         defer self.db.finalize(stmt);
 
         const now = std.time.timestamp();
 
-        _ = c.sqlite3_bind_text(stmt, 1, fw.id.ptr, @intCast(fw.id.len), null);
-        _ = c.sqlite3_bind_text(stmt, 2, fw.name.ptr, @intCast(fw.name.len), null);
-        _ = c.sqlite3_bind_text(stmt, 3, fw.caliber.ptr, @intCast(fw.caliber.len), null);
+        _ = c.sqlite3_bind_text(stmt, 1, fw.name.ptr, @intCast(fw.name.len), null);
+        _ = c.sqlite3_bind_text(stmt, 2, fw.caliber.ptr, @intCast(fw.caliber.len), null);
         if (fw.serial_number.len > 0) {
-            _ = c.sqlite3_bind_text(stmt, 4, fw.serial_number.ptr, @intCast(fw.serial_number.len), null);
+            _ = c.sqlite3_bind_text(stmt, 3, fw.serial_number.ptr, @intCast(fw.serial_number.len), null);
+        } else {
+            _ = c.sqlite3_bind_null(stmt, 3);
         }
-        _ = c.sqlite3_bind_int64(stmt, 5, fw.purchase_date);
+        _ = c.sqlite3_bind_int64(stmt, 4, fw.purchase_date);
         if (fw.notes.len > 0) {
-            _ = c.sqlite3_bind_text(stmt, 6, fw.notes.ptr, @intCast(fw.notes.len), null);
+            _ = c.sqlite3_bind_text(stmt, 5, fw.notes.ptr, @intCast(fw.notes.len), null);
+        } else {
+            _ = c.sqlite3_bind_null(stmt, 5);
         }
         const status_str = types.CheckoutStatus.toString(fw.status);
-        _ = c.sqlite3_bind_text(stmt, 7, status_str.ptr, @intCast(status_str.len), null);
-        _ = c.sqlite3_bind_int(stmt, 8, if (fw.is_nfa) 1 else 0);
+        _ = c.sqlite3_bind_text(stmt, 6, status_str.ptr, @intCast(status_str.len), null);
+        _ = c.sqlite3_bind_int(stmt, 7, if (fw.is_nfa) 1 else 0);
         if (fw.nfa_type) |nfa| {
             const nfa_str = types.NFAFirearmType.toString(nfa);
-            _ = c.sqlite3_bind_text(stmt, 9, nfa_str.ptr, @intCast(nfa_str.len), null);
+            _ = c.sqlite3_bind_text(stmt, 8, nfa_str.ptr, @intCast(nfa_str.len), null);
+        } else {
+            _ = c.sqlite3_bind_null(stmt, 8);
         }
         if (fw.tax_stamp_id.len > 0) {
-            _ = c.sqlite3_bind_text(stmt, 10, fw.tax_stamp_id.ptr, @intCast(fw.tax_stamp_id.len), null);
+            _ = c.sqlite3_bind_text(stmt, 9, fw.tax_stamp_id.ptr, @intCast(fw.tax_stamp_id.len), null);
+        } else {
+            _ = c.sqlite3_bind_null(stmt, 9);
         }
         if (fw.form_type.len > 0) {
-            _ = c.sqlite3_bind_text(stmt, 11, fw.form_type.ptr, @intCast(fw.form_type.len), null);
+            _ = c.sqlite3_bind_text(stmt, 10, fw.form_type.ptr, @intCast(fw.form_type.len), null);
+        } else {
+            _ = c.sqlite3_bind_null(stmt, 10);
         }
         if (fw.barrel_length.len > 0) {
-            _ = c.sqlite3_bind_text(stmt, 12, fw.barrel_length.ptr, @intCast(fw.barrel_length.len), null);
+            _ = c.sqlite3_bind_text(stmt, 11, fw.barrel_length.ptr, @intCast(fw.barrel_length.len), null);
+        } else {
+            _ = c.sqlite3_bind_null(stmt, 11);
         }
         if (fw.trust_name.len > 0) {
-            _ = c.sqlite3_bind_text(stmt, 13, fw.trust_name.ptr, @intCast(fw.trust_name.len), null);
+            _ = c.sqlite3_bind_text(stmt, 12, fw.trust_name.ptr, @intCast(fw.trust_name.len), null);
+        } else {
+            _ = c.sqlite3_bind_null(stmt, 12);
         }
         const transfer_str = types.TransferStatus.toString(fw.transfer_status);
-        _ = c.sqlite3_bind_text(stmt, 14, transfer_str.ptr, @intCast(transfer_str.len), null);
-        _ = c.sqlite3_bind_int(stmt, 15, fw.rounds_fired);
-        _ = c.sqlite3_bind_int(stmt, 16, fw.clean_interval_rounds);
-        _ = c.sqlite3_bind_int(stmt, 17, fw.oil_interval_days);
-        _ = c.sqlite3_bind_int(stmt, 18, if (fw.needs_maintenance) 1 else 0);
+        _ = c.sqlite3_bind_text(stmt, 13, transfer_str.ptr, @intCast(transfer_str.len), null);
+        _ = c.sqlite3_bind_int(stmt, 14, fw.rounds_fired);
+        _ = c.sqlite3_bind_int(stmt, 15, fw.clean_interval_rounds);
+        _ = c.sqlite3_bind_int(stmt, 16, fw.oil_interval_days);
+        _ = c.sqlite3_bind_int(stmt, 17, if (fw.needs_maintenance) 1 else 0);
         if (fw.maintenance_conditions.len > 0) {
-            _ = c.sqlite3_bind_text(stmt, 19, fw.maintenance_conditions.ptr, @intCast(fw.maintenance_conditions.len), null);
+            _ = c.sqlite3_bind_text(stmt, 18, fw.maintenance_conditions.ptr, @intCast(fw.maintenance_conditions.len), null);
+        } else {
+            _ = c.sqlite3_bind_null(stmt, 18);
         }
-        _ = c.sqlite3_bind_int64(stmt, 20, 0); // last_cleaned_at
-        _ = c.sqlite3_bind_int64(stmt, 21, 0); // last_oiled_at
-        _ = c.sqlite3_bind_int64(stmt, 22, now); // created_at
-        _ = c.sqlite3_bind_int64(stmt, 23, now); // updated_at
+        _ = c.sqlite3_bind_int64(stmt, 19, 0); // last_cleaned_at
+        _ = c.sqlite3_bind_int64(stmt, 20, 0); // last_oiled_at
+        _ = c.sqlite3_bind_int64(stmt, 21, now); // created_at
+        _ = c.sqlite3_bind_int64(stmt, 22, now); // updated_at
 
-        _ = try self.db.step(stmt);
+        std.debug.print("DEBUG: About to step, sql has ? placeholders\n", .{});
+        const result = self.db.step(stmt);
+        std.debug.print("DEBUG: step result = {!}\n", .{result});
+        if (result) |_| {} else |err| {
+            std.debug.print("DEBUG: step failed with error\n", .{});
+            return err;
+        }
     }
 
     pub fn getAll(self: *FirearmRepository, allocator: std.mem.Allocator) ![]firearm.Firearm {
-        const sql = "SELECT id, name, caliber, serial_number, purchase_date, notes, status, is_nfa, nfa_type, tax_stamp_id, form_type, barrel_length, trust_name, transfer_status, rounds_fired, clean_interval_rounds, oil_interval_days, needs_maintenance, maintenance_conditions, last_cleaned_at, last_oiled_at, created_at, updated_at FROM firearms WHERE transfer_status = 'OWNED' OR transfer_status IS NULL ORDER BY name";
+        const sql = "SELECT id, name, caliber, serial_number, purchase_date, notes, status, is_nfa, nfa_type, tax_stamp_id, form_type, barrel_length, trust_name, transfer_status, rounds_fired, clean_interval_rounds, oil_interval_days, needs_maintenance, maintenance_conditions, last_cleaned_at, last_oiled_at, created_at, updated_at FROM firearms ORDER BY name";
         const stmt_opt = try self.db.prepare(sql);
         const stmt = stmt_opt orelse return error.PrepareFailed;
         defer self.db.finalize(stmt);
@@ -605,6 +626,72 @@ pub const FirearmRepository = struct {
 
         _ = c.sqlite3_bind_text(stmt, 1, status_str.ptr, @intCast(status_str.len), null);
         _ = c.sqlite3_bind_text(stmt, 2, id.ptr, @intCast(id.len), null);
+        _ = try self.db.step(stmt);
+    }
+
+    pub fn update(self: *FirearmRepository, fw: firearm.Firearm) !void {
+        const sql = "UPDATE firearms SET name = ?, caliber = ?, serial_number = ?, notes = ?, status = ?, is_nfa = ?, nfa_type = ?, tax_stamp_id = ?, form_type = ?, barrel_length = ?, trust_name = ?, transfer_status = ?, rounds_fired = ?, clean_interval_rounds = ?, oil_interval_days = ?, needs_maintenance = ?, maintenance_conditions = ?, updated_at = ? WHERE id = ?";
+        const stmt_opt = try self.db.prepare(sql);
+        const stmt = stmt_opt orelse return error.PrepareFailed;
+        defer self.db.finalize(stmt);
+
+        const now = std.time.timestamp();
+
+        _ = c.sqlite3_bind_text(stmt, 1, fw.name.ptr, @intCast(fw.name.len), null);
+        _ = c.sqlite3_bind_text(stmt, 2, fw.caliber.ptr, @intCast(fw.caliber.len), null);
+        if (fw.serial_number.len > 0) {
+            _ = c.sqlite3_bind_text(stmt, 3, fw.serial_number.ptr, @intCast(fw.serial_number.len), null);
+        } else {
+            _ = c.sqlite3_bind_null(stmt, 3);
+        }
+        if (fw.notes.len > 0) {
+            _ = c.sqlite3_bind_text(stmt, 4, fw.notes.ptr, @intCast(fw.notes.len), null);
+        } else {
+            _ = c.sqlite3_bind_null(stmt, 4);
+        }
+        const status_str = types.CheckoutStatus.toString(fw.status);
+        _ = c.sqlite3_bind_text(stmt, 5, status_str.ptr, @intCast(status_str.len), null);
+        _ = c.sqlite3_bind_int(stmt, 6, if (fw.is_nfa) 1 else 0);
+        if (fw.nfa_type) |nfa| {
+            const nfa_str = types.NFAFirearmType.toString(nfa);
+            _ = c.sqlite3_bind_text(stmt, 7, nfa_str.ptr, @intCast(nfa_str.len), null);
+        } else {
+            _ = c.sqlite3_bind_null(stmt, 7);
+        }
+        if (fw.tax_stamp_id.len > 0) {
+            _ = c.sqlite3_bind_text(stmt, 8, fw.tax_stamp_id.ptr, @intCast(fw.tax_stamp_id.len), null);
+        } else {
+            _ = c.sqlite3_bind_null(stmt, 8);
+        }
+        if (fw.form_type.len > 0) {
+            _ = c.sqlite3_bind_text(stmt, 9, fw.form_type.ptr, @intCast(fw.form_type.len), null);
+        } else {
+            _ = c.sqlite3_bind_null(stmt, 9);
+        }
+        if (fw.barrel_length.len > 0) {
+            _ = c.sqlite3_bind_text(stmt, 10, fw.barrel_length.ptr, @intCast(fw.barrel_length.len), null);
+        } else {
+            _ = c.sqlite3_bind_null(stmt, 10);
+        }
+        if (fw.trust_name.len > 0) {
+            _ = c.sqlite3_bind_text(stmt, 11, fw.trust_name.ptr, @intCast(fw.trust_name.len), null);
+        } else {
+            _ = c.sqlite3_bind_null(stmt, 11);
+        }
+        const transfer_str = types.TransferStatus.toString(fw.transfer_status);
+        _ = c.sqlite3_bind_text(stmt, 12, transfer_str.ptr, @intCast(transfer_str.len), null);
+        _ = c.sqlite3_bind_int(stmt, 13, fw.rounds_fired);
+        _ = c.sqlite3_bind_int(stmt, 14, fw.clean_interval_rounds);
+        _ = c.sqlite3_bind_int(stmt, 15, fw.oil_interval_days);
+        _ = c.sqlite3_bind_int(stmt, 16, if (fw.needs_maintenance) 1 else 0);
+        if (fw.maintenance_conditions.len > 0) {
+            _ = c.sqlite3_bind_text(stmt, 17, fw.maintenance_conditions.ptr, @intCast(fw.maintenance_conditions.len), null);
+        } else {
+            _ = c.sqlite3_bind_null(stmt, 17);
+        }
+        _ = c.sqlite3_bind_int64(stmt, 18, now);
+        _ = c.sqlite3_bind_text(stmt, 19, fw.id.ptr, @intCast(fw.id.len), null);
+
         _ = try self.db.step(stmt);
     }
 
@@ -703,6 +790,8 @@ pub const SoftGearRepository = struct {
         _ = c.sqlite3_bind_int64(stmt, 5, sg.purchase_date);
         if (sg.notes.len > 0) {
             _ = c.sqlite3_bind_text(stmt, 6, sg.notes.ptr, @intCast(sg.notes.len), null);
+        } else {
+            _ = c.sqlite3_bind_null(stmt, 6);
         }
         const status_str = types.CheckoutStatus.toString(sg.status);
         _ = c.sqlite3_bind_text(stmt, 7, status_str.ptr, @intCast(status_str.len), null);
@@ -1619,6 +1708,18 @@ pub const NFAItemRepository = struct {
         _ = try self.db.step(stmt);
     }
 
+    pub fn updateStatus(self: *NFAItemRepository, id: []const u8, status: types.CheckoutStatus) !void {
+        const sql = "UPDATE nfa_items SET status = ? WHERE id = ?";
+        const stmt_opt = try self.db.prepare(sql);
+        const stmt = stmt_opt orelse return error.PrepareFailed;
+        defer self.db.finalize(stmt);
+
+        const status_str = types.CheckoutStatus.toString(status);
+        _ = c.sqlite3_bind_text(stmt, 1, status_str.ptr, @intCast(status_str.len), null);
+        _ = c.sqlite3_bind_text(stmt, 2, id.ptr, @intCast(id.len), null);
+        _ = try self.db.step(stmt);
+    }
+
     pub fn deinitAll(_: *NFAItemRepository, allocator: std.mem.Allocator, items: []gear.NFAItem) void {
         for (items) |*nfa| {
             allocator.free(nfa.id);
@@ -1788,6 +1889,52 @@ pub const AttachmentRepository = struct {
         defer self.db.finalize(stmt);
 
         _ = c.sqlite3_bind_text(stmt, 1, id.ptr, @intCast(id.len), null);
+        _ = try self.db.step(stmt);
+    }
+
+    pub fn getById(self: *AttachmentRepository, allocator: std.mem.Allocator, id: []const u8) !?gear.Attachment {
+        const sql = "SELECT id, name, category, brand, model, purchase_date, serial_number, mounted_on_firearm_id, mount_position, zero_distance_yards, zero_notes, notes FROM attachments WHERE id = ?";
+        const stmt_opt = try self.db.prepare(sql);
+        const stmt = stmt_opt orelse return error.PrepareFailed;
+        defer self.db.finalize(stmt);
+
+        _ = c.sqlite3_bind_text(stmt, 1, id.ptr, @intCast(id.len), null);
+
+        if (try self.db.step(stmt)) {
+            return try self.rowToAttachment(stmt, allocator);
+        }
+        return null;
+    }
+
+    pub fn update(self: *AttachmentRepository, att: gear.Attachment) !void {
+        const sql = "UPDATE attachments SET name = ?, category = ?, brand = ?, model = ?, serial_number = ?, mount_position = ?, zero_distance_yards = ?, zero_notes = ?, notes = ? WHERE id = ?";
+        const stmt_opt = try self.db.prepare(sql);
+        const stmt = stmt_opt orelse return error.PrepareFailed;
+        defer self.db.finalize(stmt);
+
+        _ = c.sqlite3_bind_text(stmt, 1, att.name.ptr, @intCast(att.name.len), null);
+        _ = c.sqlite3_bind_text(stmt, 2, att.category.ptr, @intCast(att.category.len), null);
+        _ = c.sqlite3_bind_text(stmt, 3, att.brand.ptr, @intCast(att.brand.len), null);
+        _ = c.sqlite3_bind_text(stmt, 4, att.model.ptr, @intCast(att.model.len), null);
+        if (att.serial_number.len > 0) {
+            _ = c.sqlite3_bind_text(stmt, 5, att.serial_number.ptr, @intCast(att.serial_number.len), null);
+        } else {
+            _ = c.sqlite3_bind_null(stmt, 5);
+        }
+        _ = c.sqlite3_bind_text(stmt, 6, att.mount_position.ptr, @intCast(att.mount_position.len), null);
+        if (att.zero_distance_yards) |zdy| {
+            _ = c.sqlite3_bind_int(stmt, 7, zdy);
+        } else {
+            _ = c.sqlite3_bind_null(stmt, 7);
+        }
+        _ = c.sqlite3_bind_text(stmt, 8, att.zero_notes.ptr, @intCast(att.zero_notes.len), null);
+        if (att.notes.len > 0) {
+            _ = c.sqlite3_bind_text(stmt, 9, att.notes.ptr, @intCast(att.notes.len), null);
+        } else {
+            _ = c.sqlite3_bind_null(stmt, 9);
+        }
+        _ = c.sqlite3_bind_text(stmt, 10, att.id.ptr, @intCast(att.id.len), null);
+
         _ = try self.db.step(stmt);
     }
 
@@ -2119,6 +2266,112 @@ pub const ReloadBatchRepository = struct {
         return null;
     }
 
+    pub fn update(self: *ReloadBatchRepository, rb: reloading.ReloadBatch) !void {
+        const sql = "UPDATE reload_batches SET cartridge = ?, firearm_id = ?, bullet_maker = ?, bullet_model = ?, bullet_weight_gr = ?, powder_name = ?, powder_charge_gr = ?, powder_lot = ?, primer_maker = ?, primer_type = ?, case_brand = ?, case_times_fired = ?, case_prep_notes = ?, coal_in = ?, crimp_style = ?, test_date = ?, avg_velocity = ?, es = ?, sd = ?, group_size_inches = ?, group_distance_yards = ?, intended_use = ?, status = ?, notes = ? WHERE id = ?";
+        const stmt_opt = try self.db.prepare(sql);
+        const stmt = stmt_opt orelse return error.PrepareFailed;
+        defer self.db.finalize(stmt);
+
+        var bind_idx: i32 = 1;
+
+        _ = c.sqlite3_bind_text(stmt, bind_idx, rb.cartridge.ptr, @intCast(rb.cartridge.len), null);
+        bind_idx += 1;
+        if (rb.firearm_id) |fid| {
+            _ = c.sqlite3_bind_text(stmt, bind_idx, fid.ptr, @intCast(fid.len), null);
+        }
+        bind_idx += 1;
+        if (rb.bullet_maker.len > 0) {
+            _ = c.sqlite3_bind_text(stmt, bind_idx, rb.bullet_maker.ptr, @intCast(rb.bullet_maker.len), null);
+        }
+        bind_idx += 1;
+        if (rb.bullet_model.len > 0) {
+            _ = c.sqlite3_bind_text(stmt, bind_idx, rb.bullet_model.ptr, @intCast(rb.bullet_model.len), null);
+        }
+        bind_idx += 1;
+        if (rb.bullet_weight_gr) |bwg| {
+            _ = c.sqlite3_bind_int(stmt, bind_idx, bwg);
+        }
+        bind_idx += 1;
+        if (rb.powder_name.len > 0) {
+            _ = c.sqlite3_bind_text(stmt, bind_idx, rb.powder_name.ptr, @intCast(rb.powder_name.len), null);
+        }
+        bind_idx += 1;
+        if (rb.powder_charge_gr) |pcg| {
+            _ = c.sqlite3_bind_double(stmt, bind_idx, pcg);
+        }
+        bind_idx += 1;
+        if (rb.powder_lot.len > 0) {
+            _ = c.sqlite3_bind_text(stmt, bind_idx, rb.powder_lot.ptr, @intCast(rb.powder_lot.len), null);
+        }
+        bind_idx += 1;
+        if (rb.primer_maker.len > 0) {
+            _ = c.sqlite3_bind_text(stmt, bind_idx, rb.primer_maker.ptr, @intCast(rb.primer_maker.len), null);
+        }
+        bind_idx += 1;
+        if (rb.primer_type.len > 0) {
+            _ = c.sqlite3_bind_text(stmt, bind_idx, rb.primer_type.ptr, @intCast(rb.primer_type.len), null);
+        }
+        bind_idx += 1;
+        if (rb.case_brand.len > 0) {
+            _ = c.sqlite3_bind_text(stmt, bind_idx, rb.case_brand.ptr, @intCast(rb.case_brand.len), null);
+        }
+        bind_idx += 1;
+        if (rb.case_times_fired) |ctf| {
+            _ = c.sqlite3_bind_int(stmt, bind_idx, ctf);
+        }
+        bind_idx += 1;
+        if (rb.case_prep_notes.len > 0) {
+            _ = c.sqlite3_bind_text(stmt, bind_idx, rb.case_prep_notes.ptr, @intCast(rb.case_prep_notes.len), null);
+        }
+        bind_idx += 1;
+        if (rb.coal_in) |ci| {
+            _ = c.sqlite3_bind_double(stmt, bind_idx, ci);
+        }
+        bind_idx += 1;
+        if (rb.crimp_style.len > 0) {
+            _ = c.sqlite3_bind_text(stmt, bind_idx, rb.crimp_style.ptr, @intCast(rb.crimp_style.len), null);
+        }
+        bind_idx += 1;
+        if (rb.test_date) |td| {
+            _ = c.sqlite3_bind_int64(stmt, bind_idx, td);
+        }
+        bind_idx += 1;
+        if (rb.avg_velocity) |av| {
+            _ = c.sqlite3_bind_int(stmt, bind_idx, av);
+        }
+        bind_idx += 1;
+        if (rb.es) |es| {
+            _ = c.sqlite3_bind_int(stmt, bind_idx, es);
+        }
+        bind_idx += 1;
+        if (rb.sd) |sd| {
+            _ = c.sqlite3_bind_int(stmt, bind_idx, sd);
+        }
+        bind_idx += 1;
+        if (rb.group_size_inches) |gsi| {
+            _ = c.sqlite3_bind_double(stmt, bind_idx, gsi);
+        }
+        bind_idx += 1;
+        if (rb.group_distance_yards) |gdy| {
+            _ = c.sqlite3_bind_int(stmt, bind_idx, gdy);
+        }
+        bind_idx += 1;
+        if (rb.intended_use.len > 0) {
+            _ = c.sqlite3_bind_text(stmt, bind_idx, rb.intended_use.ptr, @intCast(rb.intended_use.len), null);
+        }
+        bind_idx += 1;
+        const status_str = types.ReloadStatus.toString(rb.status);
+        _ = c.sqlite3_bind_text(stmt, bind_idx, status_str.ptr, @intCast(status_str.len), null);
+        bind_idx += 1;
+        if (rb.notes.len > 0) {
+            _ = c.sqlite3_bind_text(stmt, bind_idx, rb.notes.ptr, @intCast(rb.notes.len), null);
+        }
+        bind_idx += 1;
+        _ = c.sqlite3_bind_text(stmt, bind_idx, rb.id.ptr, @intCast(rb.id.len), null);
+
+        _ = try self.db.step(stmt);
+    }
+
     pub fn delete(self: *ReloadBatchRepository, id: []const u8) !void {
         const sql = "DELETE FROM reload_batches WHERE id = ?";
         const stmt_opt = try self.db.prepare(sql);
@@ -2295,6 +2548,34 @@ pub const LoadoutRepository = struct {
 
         _ = c.sqlite3_bind_text(stmt, 1, id.ptr, @intCast(id.len), null);
         _ = try self.db.step(stmt);
+    }
+
+    pub fn countItems(self: *LoadoutRepository, loadout_id: []const u8) !i32 {
+        const sql = "SELECT COUNT(*) FROM loadout_items WHERE loadout_id = ?";
+        const stmt_opt = try self.db.prepare(sql);
+        const stmt = stmt_opt orelse return error.PrepareFailed;
+        defer self.db.finalize(stmt);
+
+        _ = c.sqlite3_bind_text(stmt, 1, loadout_id.ptr, @intCast(loadout_id.len), null);
+
+        if (try self.db.step(stmt)) {
+            return c.sqlite3_column_int(stmt, 0);
+        }
+        return 0;
+    }
+
+    pub fn countConsumables(self: *LoadoutRepository, loadout_id: []const u8) !i32 {
+        const sql = "SELECT COUNT(*) FROM loadout_consumables WHERE loadout_id = ?";
+        const stmt_opt = try self.db.prepare(sql);
+        const stmt = stmt_opt orelse return error.PrepareFailed;
+        defer self.db.finalize(stmt);
+
+        _ = c.sqlite3_bind_text(stmt, 1, loadout_id.ptr, @intCast(loadout_id.len), null);
+
+        if (try self.db.step(stmt)) {
+            return c.sqlite3_column_int(stmt, 0);
+        }
+        return 0;
     }
 
     pub fn deinitAll(_: *LoadoutRepository, allocator: std.mem.Allocator, items: []loadout.Loadout) void {

@@ -5,11 +5,13 @@ pub const CheckoutStatus = enum(u8) {
     checked_out = 1,
     lost = 2,
     retired = 3,
+    transferred = 4,
 
     pub fn fromString(s: []const u8) CheckoutStatus {
         if (std.mem.eql(u8, s, "CHECKED_OUT")) return .checked_out;
         if (std.mem.eql(u8, s, "LOST")) return .lost;
         if (std.mem.eql(u8, s, "RETIRED")) return .retired;
+        if (std.mem.eql(u8, s, "TRANSFERRED")) return .transferred;
         return .available;
     }
 
@@ -19,20 +21,38 @@ pub const CheckoutStatus = enum(u8) {
             .checked_out => "CHECKED_OUT",
             .lost => "LOST",
             .retired => "RETIRED",
+            .transferred => "TRANSFERRED",
         };
     }
 };
 
 pub const MaintenanceType = enum(u8) {
     cleaning = 0,
-    repair = 1,
-    inspection = 2,
-    oil = 3,
-    other = 4,
+    lubrication = 1,
+    repair = 2,
+    zeroing = 3,
+    hunting = 4,
+    inspection = 5,
+    fired_rounds = 6,
+    oiling = 7,
+    rain_exposure = 8,
+    corrosive_ammo = 9,
+    lead_ammo = 10,
+    oil = 11,
+    other = 12,
 
     pub fn fromString(s: []const u8) MaintenanceType {
+        if (std.mem.eql(u8, s, "CLEANING")) return .cleaning;
+        if (std.mem.eql(u8, s, "LUBRICATION")) return .lubrication;
         if (std.mem.eql(u8, s, "REPAIR")) return .repair;
+        if (std.mem.eql(u8, s, "ZEROING")) return .zeroing;
+        if (std.mem.eql(u8, s, "HUNTING")) return .hunting;
         if (std.mem.eql(u8, s, "INSPECTION")) return .inspection;
+        if (std.mem.eql(u8, s, "FIRED_ROUNDS")) return .fired_rounds;
+        if (std.mem.eql(u8, s, "OILING")) return .oiling;
+        if (std.mem.eql(u8, s, "RAIN_EXPOSURE")) return .rain_exposure;
+        if (std.mem.eql(u8, s, "CORROSIVE_AMMO")) return .corrosive_ammo;
+        if (std.mem.eql(u8, s, "LEAD_AMMO")) return .lead_ammo;
         if (std.mem.eql(u8, s, "OIL")) return .oil;
         if (std.mem.eql(u8, s, "OTHER")) return .other;
         return .cleaning;
@@ -41,10 +61,36 @@ pub const MaintenanceType = enum(u8) {
     pub fn toString(self: MaintenanceType) []const u8 {
         return switch (self) {
             .cleaning => "CLEANING",
+            .lubrication => "LUBRICATION",
             .repair => "REPAIR",
+            .zeroing => "ZEROING",
+            .hunting => "HUNTING",
             .inspection => "INSPECTION",
+            .fired_rounds => "FIRED_ROUNDS",
+            .oiling => "OILING",
+            .rain_exposure => "RAIN_EXPOSURE",
+            .corrosive_ammo => "CORROSIVE_AMMO",
+            .lead_ammo => "LEAD_AMMO",
             .oil => "OIL",
             .other => "OTHER",
+        };
+    }
+
+    pub fn getAllStrings(_: MaintenanceType) [13][:0]const u8 {
+        return .{
+            "CLEANING",
+            "LUBRICATION",
+            "REPAIR",
+            "ZEROING",
+            "HUNTING",
+            "INSPECTION",
+            "FIRED_ROUNDS",
+            "OILING",
+            "RAIN_EXPOSURE",
+            "CORROSIVE_AMMO",
+            "LEAD_AMMO",
+            "OIL",
+            "OTHER",
         };
     }
 };
